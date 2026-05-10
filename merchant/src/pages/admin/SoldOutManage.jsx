@@ -15,9 +15,11 @@ export default function SoldOutManage() {
   useEffect(() => { load(); }, []);
 
   const toggle = async (id, currentStatus) => {
-    const newStatus = currentStatus === 'active' ? 'sold_out' : 'active';
-    await menuApi.updateStatus(id, newStatus);
-    setItems(items.map(i => i.id === id ? { ...i, status: newStatus } : i));
+    try {
+      const newStatus = currentStatus === 'active' ? 'sold_out' : 'active';
+      await menuApi.updateStatus(id, newStatus);
+      setItems(items.map(i => i.id === id ? { ...i, status: newStatus } : i));
+    } catch (e) { message.error(e.message); }
   };
 
   const filtered = search ? items.filter(i => i.name.includes(search)) : items;

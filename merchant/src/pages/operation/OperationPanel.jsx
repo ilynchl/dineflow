@@ -54,11 +54,11 @@ export default function OperationPanel() {
   const loadData = useCallback(async () => {
     try {
       const [o, k, m, t, s] = await Promise.all([
-        orderApi.getAll({ status: 'pending,preparing,served' }),
-        orderApi.kitchenPending(),
-        menuApi.getItems({ status: 'active' }),
-        tableApi.getAll(),
-        statsApi.summary(),
+        orderApi.getAll({ status: 'pending,preparing,served' }).catch(() => []),
+        orderApi.kitchenPending().catch(() => []),
+        menuApi.getItems({ status: 'active' }).catch(() => []),
+        tableApi.getAll().catch(() => []),
+        statsApi.summary().catch(() => ({})),
       ]);
       setOrders(o);
       setKitchenItems(k);
@@ -104,8 +104,10 @@ export default function OperationPanel() {
 
   // Mark item done
   const markDone = async (itemId) => {
-    await orderApi.updateItemStatus(itemId, 'done');
-    loadData();
+    try {
+      await orderApi.updateItemStatus(itemId, 'done');
+      loadData();
+    } catch (e) { message.error(e.message); }
   };
 
   // Payment
@@ -214,19 +216,20 @@ export default function OperationPanel() {
               </Button>
               <Button size="large" block icon={<BellOutlined />} style={{ height: 48 }}
                 onClick={() => {
-                  const p = orderApi.kitchenPending();
-                  p.then(items => {
-                    if (items.length === 0) { message.info('没有待制作的订单'); return; }
-                    Modal.info({
-                      title: '待制作清单',
-                      content: <List dataSource={items} renderItem={item => (
-                        <List.Item actions={[<Button size="small" type="primary" onClick={() => { markDone(item.id); Modal.destroyAll(); }}>完成</Button>]}>
-                          <Text strong>{item.table_no || '外卖'}</Text> - {item.name} x{item.quantity}
-                        </List.Item>
-                      )} size="small" />,
-                      width: 500,
-                    });
-                  });
+                  orderApi.kitchenPending()
+                    .then(items => {
+                      if (items.length === 0) { message.info('没有待制作的订单'); return; }
+                      Modal.info({
+                        title: '待制作清单',
+                        content: <List dataSource={items} renderItem={item => (
+                          <List.Item actions={[<Button size="small" type="primary" onClick={() => { markDone(item.id); Modal.destroyAll(); }}>完成</Button>]}>
+                            <Text strong>{item.table_no || '外卖'}</Text> - {item.name} x{item.quantity}
+                          </List.Item>
+                        )} size="small" />,
+                        width: 500,
+                      });
+                    })
+                    .catch(() => message.error('加载待制作清单失败'));
                 }}>
                 待制作 ({kitchenItems.length})
               </Button>

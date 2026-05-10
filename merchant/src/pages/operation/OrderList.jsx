@@ -31,9 +31,11 @@ export default function OrderList() {
   useEffect(() => { loadOrders(); }, [filterStatus]);
 
   const handleStatusChange = async (orderId, status) => {
-    await orderApi.updateStatus(orderId, status);
-    message.success('状态已更新');
-    loadOrders();
+    try {
+      await orderApi.updateStatus(orderId, status);
+      message.success('状态已更新');
+      loadOrders();
+    } catch (e) { message.error(e.message); }
   };
 
   const columns = [

@@ -28,7 +28,11 @@ export default function TableManage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [t, z, q] = await Promise.all([tableApi.getAll(), tableApi.getZones(), qrApi.getAll()]);
+      const [t, z, q] = await Promise.all([
+        tableApi.getAll().catch(() => []),
+        tableApi.getZones().catch(() => []),
+        qrApi.getAll().catch(() => []),
+      ]);
       setTables(t);
       setZones(z);
       // Build qr lookup by table_id

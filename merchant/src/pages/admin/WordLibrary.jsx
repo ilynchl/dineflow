@@ -13,7 +13,10 @@ export default function WordLibrary() {
   const load = async () => {
     setLoading(true);
     try {
-      const [w, m] = await Promise.all([wordApi.getAll(), menuApi.getItems({})]);
+      const [w, m] = await Promise.all([
+        wordApi.getAll().catch(() => []),
+        menuApi.getItems({}).catch(() => []),
+      ]);
       setWords(w);
       setMenuItems(m);
     } catch (e) { message.error('加载失败'); }
@@ -37,7 +40,7 @@ export default function WordLibrary() {
     {
       title: '操作', key: 'action', width: 80,
       render: (_, r) => (
-        <Popconfirm title="确定删除？" onConfirm={async () => { await wordApi.delete(r.id); load(); }}>
+        <Popconfirm title="确定删除？" onConfirm={async () => { try { await wordApi.delete(r.id); load(); } catch (e) { message.error(e.message); } }}>
           <Button size="small" danger icon={<DeleteOutlined />} />
         </Popconfirm>
       ),
