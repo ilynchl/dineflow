@@ -1,0 +1,15 @@
+{
+  "miniprogramRoot": "./dist",
+  "projectname": "dineflow-weapp",
+  "description": "烧烤摊点餐",
+  "appid": "wx0d1b357180c9718d",
+  "setting": {
+    "urlCheck": true,
+    "es6": true,
+    "enhance": true,
+    "postcss": false,
+    "minified": false,
+    "compileHotReLoad": true
+  },
+  "compileType": "miniprogram"
+}

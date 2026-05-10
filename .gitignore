@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.cache/
+.swc/
+*.log
+.env
+*.pem
+server.pem
+deploy.tar.gz
+screenshot*/
+xmind_output.txt
+xmind_structure.txt
+.claude/
+.DS_Store
+Thumbs.db

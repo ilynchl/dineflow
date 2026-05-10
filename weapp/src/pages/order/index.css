@@ -1,0 +1,27 @@
+.order-detail-page { padding: 40rpx; text-align: center; }
+.od-status { font-size: 56rpx; font-weight: bold; padding: 48rpx; margin-bottom: 32rpx; border-radius: 24rpx; }
+.od-status[data-status="pending"] { background: #fff2e8; color: #fa541c; }
+.od-status[data-status="preparing"] { background: #e6f7ff; color: #1890ff; }
+.od-status[data-status="served"] { background: #f6ffed; color: #52c41a; }
+.od-status[data-status="paid"] { background: #f5f5f5; color: #999; }
+.od-no { color: #999; font-size: 26rpx; margin-bottom: 40rpx; }
+.od-items { text-align: left; background: white; border-radius: 16rpx; padding: 24rpx 32rpx; margin-bottom: 32rpx; }
+.od-item { display: flex; justify-content: space-between; padding: 16rpx 0; border-bottom: 2rpx solid #f5f5f5; font-size: 30rpx; }
+.od-total { font-size: 40rpx; font-weight: bold; margin-bottom: 40rpx; }
+.back-menu-btn { background: #e74c3c; color: white; padding: 24rpx 80rpx; border-radius: 44rpx; font-size: 32rpx; margin-top: 40rpx; }
+
+.orders-page { padding: 24rpx; }
+.empty-state { text-align: center; padding: 120rpx 0; color: #999; font-size: 28rpx; }
+.goto-menu { background: #e74c3c; color: white; margin-top: 40rpx; border-radius: 40rpx; }
+.order-card { background: white; border-radius: 20rpx; padding: 28rpx 32rpx; margin-bottom: 20rpx; }
+.oc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12rpx; }
+.oc-no { font-size: 26rpx; color: #999; }
+.oc-status { font-size: 24rpx; padding: 4rpx 20rpx; border-radius: 20rpx; }
+.oc-status[data-status="pending"] { background: #fff2e8; color: #fa541c; }
+.oc-status[data-status="preparing"] { background: #e6f7ff; color: #1890ff; }
+.oc-status[data-status="served"] { background: #f6ffed; color: #52c41a; }
+.oc-status[data-status="paid"] { background: #f5f5f5; color: #999; }
+.oc-items { font-size: 28rpx; color: #666; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oc-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 16rpx; }
+.oc-total { font-size: 36rpx; font-weight: bold; color: #e74c3c; }
+.oc-time { font-size: 24rpx; color: #ccc; }
