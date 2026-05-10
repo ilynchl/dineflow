@@ -1,0 +1,34 @@
+body {
+  margin: 0;
+  padding: 0;
+}
+
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f0f2f5;
+}
+
+.login-card {
+  width: 400px;
+}
+
+.login-card h2 {
+  text-align: center;
+  margin-bottom: 24px;
+  color: #e74c3c;
+}
+
+/* 侧边栏菜单项高度 */
+.ant-layout-sider .ant-menu-item {
+  height: 48px !important;
+  line-height: 48px !important;
+  margin-top: 2px !important;
+  margin-bottom: 2px !important;
+}
+.ant-layout-sider .ant-menu-submenu-title {
+  height: 48px !important;
+  line-height: 48px !important;
+}

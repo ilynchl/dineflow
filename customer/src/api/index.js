@@ -1,6 +1,19 @@
 const BASE = '/api';
 
+function getTenantParam() {
+  const params = new URLSearchParams(window.location.search);
+  const tid = params.get('__tenant');
+  return tid ? `__tenant=${tid}` : '';
+}
+
 async function request(path, options = {}) {
+  // 自动追加租户参数
+  const tenant = getTenantParam();
+  if (tenant) {
+    const sep = path.includes('?') ? '&' : '?';
+    path = `${path}${sep}${tenant}`;
+  }
+
   const res = await fetch(`${BASE}${path}`, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
@@ -23,4 +36,8 @@ export const orderApi = {
 
 export const tableApi = {
   getAll: () => request('/tables'),
+};
+
+export const settingsApi = {
+  getAll: () => request('/settings'),
 };

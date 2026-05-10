@@ -42,8 +42,10 @@ export default function MenuManage() {
       render: (s, r) => (
         <Tag color={s === 'active' ? 'green' : 'red'} style={{ cursor: 'pointer' }}
           onClick={async () => {
-            await menuApi.updateStatus(r.id, s === 'active' ? 'sold_out' : 'active');
-            load();
+            try {
+              await menuApi.updateStatus(r.id, s === 'active' ? 'sold_out' : 'active');
+              load();
+            } catch (e) { message.error(e.message); }
           }}>
           {s === 'active' ? '在售' : '沽清'}
         </Tag>
@@ -99,13 +101,17 @@ export default function MenuManage() {
         <Space style={{ marginBottom: 16 }}>
           <Input value={catName} onChange={e => setCatName(e.target.value)} placeholder="分类名称" onPressEnter={async () => {
             if (!catName) return;
-            await menuApi.createCategory({ name: catName });
-            setCatName(''); load();
+            try {
+              await menuApi.createCategory({ name: catName });
+              setCatName(''); load();
+            } catch (e) { message.error(e.message); }
           }} />
           <Button type="primary" onClick={async () => {
             if (!catName) return;
-            await menuApi.createCategory({ name: catName });
-            setCatName(''); load();
+            try {
+              await menuApi.createCategory({ name: catName });
+              setCatName(''); load();
+            } catch (e) { message.error(e.message); }
           }}>添加</Button>
         </Space>
         {categories.map(c => (

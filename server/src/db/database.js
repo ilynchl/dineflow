@@ -1,4 +1,5 @@
 const mysql = require('mysql2/promise');
+const mysqlFormat = require('mysql2').format;
 
 const DB_CONFIG = {
   host: 'rm-bp150ynr96h472763go.mysql.rds.aliyuncs.com',
@@ -9,7 +10,7 @@ const DB_CONFIG = {
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  charset: 'utf8mb4',
+  dateStrings: true,
 };
 
 let pool = null;
@@ -46,10 +47,12 @@ module.exports = {
 
   getDb: () => ({
     prepare: (sql) => new Statement(sql),
+
     exec: async (sql) => {
       const [rows] = await pool.query(sql);
       return rows;
     },
+
     transaction: (fn) => {
       return async () => {
         const conn = await pool.getConnection();

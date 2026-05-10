@@ -1,16 +1,35 @@
 const BASE = '/api';
 
+function getToken() {
+  return localStorage.getItem('merchant_token');
+}
+
 async function request(path, options = {}) {
+  const token = getToken();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: { ...headers, ...options.headers },
     ...options,
   });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `HTTP ${res.status}`);
+    // Only redirect to login when token was sent (session expired), not for login failures
+    if (res.status === 401 && token) {
+      localStorage.removeItem('merchant_token');
+      localStorage.removeItem('merchant_user');
+      window.location.href = '/login';
+      throw new Error('登录已过期');
+    }
+    const errBody = await res.json().catch(() => ({}));
+    throw new Error(errBody.error || `请求失败 (${res.status})`);
   }
   return res.json();
 }
+
+export const merchantAuthApi = {
+  login: (data) => request('/auth/merchant-login', { method: 'POST', body: JSON.stringify(data) }),
+};
 
 // Menu
 export const menuApi = {
@@ -70,6 +89,15 @@ export const statsApi = {
 export const settingsApi = {
   get: () => request('/settings'),
   update: (data) => request('/settings', { method: 'PUT', body: JSON.stringify(data) }),
+};
+
+// Merchant profile
+export const merchantApi = {
+  getProfile: () => request('/merchant/profile'),
+  updateProfile: (data) => request('/merchant/profile', { method: 'PUT', body: JSON.stringify(data) }),
+  updateAvatar: (url, hash) => request('/merchant/avatar', { method: 'PUT', body: JSON.stringify({ url, hash }) }),
+  checkHash: (hash) => request('/merchant/check-hash', { method: 'POST', body: JSON.stringify({ hash }) }),
+  getOssConfig: () => request('/merchant/oss-config'),
 };
 
 // Split (分串)

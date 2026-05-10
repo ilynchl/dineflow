@@ -1,0 +1,11 @@
+/* 侧边栏菜单项高度 */
+.ant-layout-sider .ant-menu-item {
+  height: 48px !important;
+  line-height: 48px !important;
+  margin-top: 2px !important;
+  margin-bottom: 2px !important;
+}
+.ant-layout-sider .ant-menu-submenu-title {
+  height: 48px !important;
+  line-height: 48px !important;
+}

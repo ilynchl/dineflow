@@ -1,42 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, Modal, Dropdown } from 'antd';
+import { Layout, Menu, Button, message, Modal, Dropdown } from 'antd';
 import {
-  DashboardOutlined, MenuOutlined, TableOutlined,
-  OrderedListOutlined, ShopOutlined, SettingOutlined,
-  QrcodeOutlined, BarChartOutlined, StopOutlined, SoundOutlined,
-  LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined,
+  TeamOutlined,
+  LogoutOutlined,
+  SettingOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
 } from '@ant-design/icons';
-
-import './App.css';
-import OperationPanel from './pages/operation/OperationPanel';
-import OrderList from './pages/operation/OrderList';
-import MenuManage from './pages/admin/MenuManage';
-import SoldOutManage from './pages/admin/SoldOutManage';
-import WordLibrary from './pages/admin/WordLibrary';
-import TableManage from './pages/admin/TableManage';
-import QrManage from './pages/admin/QrManage';
-import StatsPage from './pages/admin/StatsPage';
-import SettingsPage from './pages/admin/SettingsPage';
 import Login from './pages/Login';
+import Tenants from './pages/Tenants';
+import SystemParams from './pages/SystemParams';
+import AdminUsers from './pages/AdminUsers';
+import './App.css';
 
-const { Header, Sider, Content } = Layout;
-
-const menuItems = [
-  { key: '/', icon: <DashboardOutlined />, label: '经营看板' },
-  { key: '/orders', icon: <OrderedListOutlined />, label: '订单列表' },
-  { key: '/menu', icon: <MenuOutlined />, label: '菜品管理' },
-  { key: '/soldout', icon: <StopOutlined />, label: '沽清管理' },
-  { key: '/words', icon: <SoundOutlined />, label: '词库管理' },
-  { key: '/tables', icon: <TableOutlined />, label: '桌台管理' },
-  { key: '/qrcodes', icon: <QrcodeOutlined />, label: '活码管理' },
-  { key: '/stats', icon: <BarChartOutlined />, label: '营业统计' },
-  { key: '/settings', icon: <SettingOutlined />, label: '系统设置' },
-];
+const { Sider, Content } = Layout;
 
 function getStoredUser() {
   try {
-    const raw = localStorage.getItem('merchant_user');
+    const raw = localStorage.getItem('saas_user');
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -48,6 +30,22 @@ function DashboardLayout({ user, onLogout }) {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
+
+  // 展开子菜单：路径包含 /settings/ 时展开
+  const defaultOpenKeys = location.pathname.startsWith('/settings/') ? ['settings'] : [];
+  // 选中子菜单项
+  const selectedKeys = [location.pathname];
+
+  const menuItems = [
+    { key: '/', icon: <TeamOutlined />, label: '商户管理' },
+    {
+      key: 'settings', icon: <SettingOutlined />, label: '系统设置',
+      children: [
+        { key: '/settings/accounts', label: '账号管理' },
+        { key: '/settings/params', label: '系统参数' },
+      ],
+    },
+  ];
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -61,7 +59,7 @@ function DashboardLayout({ user, onLogout }) {
             height: 48, margin: '12px 8px', display: 'flex', alignItems: 'center',
             justifyContent: 'space-between', color: '#fff', fontWeight: 'bold', fontSize: collapsed ? 14 : 18, flexShrink: 0,
           }}>
-            <span style={{ whiteSpace: 'nowrap' }}>{collapsed ? '🍢' : '慧点单商家后台'}</span>
+            <span style={{ whiteSpace: 'nowrap' }}>{collapsed ? '慧' : '慧点单运营中台'}</span>
             <Button type="text" icon={collapsed ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
               onClick={() => setCollapsed(!collapsed)}
               style={{ color: '#fff', fontSize: 16, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -70,7 +68,8 @@ function DashboardLayout({ user, onLogout }) {
           <div style={{ flex: 1, overflow: 'auto' }}>
             <Menu
               theme="dark" mode="inline"
-              selectedKeys={[location.pathname]}
+              selectedKeys={selectedKeys}
+              defaultOpenKeys={defaultOpenKeys}
               items={menuItems}
               onClick={({ key }) => navigate(key)}
             />
@@ -104,15 +103,10 @@ function DashboardLayout({ user, onLogout }) {
       <Layout style={{ marginLeft: collapsed ? 80 : 180, transition: 'margin-left 0.2s' }}>
         <Content style={{ margin: 12, minHeight: 'calc(100vh - 24px)' }}>
           <Routes>
-            <Route path="/" element={<OperationPanel />} />
-            <Route path="/orders" element={<OrderList />} />
-            <Route path="/menu" element={<MenuManage />} />
-            <Route path="/soldout" element={<SoldOutManage />} />
-            <Route path="/words" element={<WordLibrary />} />
-            <Route path="/tables" element={<TableManage />} />
-            <Route path="/qrcodes" element={<QrManage />} />
-            <Route path="/stats" element={<StatsPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/" element={<Tenants />} />
+            <Route path="/settings" element={<AdminUsers />} />
+            <Route path="/settings/accounts" element={<AdminUsers />} />
+            <Route path="/settings/params" element={<SystemParams />} />
           </Routes>
         </Content>
       </Layout>
@@ -124,19 +118,26 @@ export default function App() {
   const [user, setUser] = useState(getStoredUser);
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (user && window.location.pathname !== '/login') {
+      // logged in, continue
+    }
+  }, [user]);
+
   const handleLogin = (userData, token) => {
-    localStorage.setItem('merchant_token', token);
-    localStorage.setItem('merchant_user', JSON.stringify(userData));
+    localStorage.setItem('saas_token', token);
+    localStorage.setItem('saas_user', JSON.stringify(userData));
     setUser(userData);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('merchant_token');
-    localStorage.removeItem('merchant_user');
+    localStorage.removeItem('saas_token');
+    localStorage.removeItem('saas_user');
     setUser(null);
     navigate('/login');
   };
 
+  // If logged in and at /login, redirect to /
   if (user && window.location.pathname === '/login') {
     navigate('/', { replace: true });
     return null;

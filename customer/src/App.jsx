@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { menuApi, orderApi, tableApi } from './api';
+import { menuApi, orderApi, tableApi, settingsApi } from './api';
 import './App.css';
 
 const STATUS_MAP = {
@@ -16,19 +16,34 @@ export default function App() {
   const [cart, setCart] = useState({});
   const [showCart, setShowCart] = useState(false);
   const [selectedTable, setSelectedTable] = useState(null);
-  const [tableModal, setTableModal] = useState(false);
   const [orders, setOrders] = useState([]);
   const [currentOrder, setCurrentOrder] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [shopName, setShopName] = useState('');
+  const [qrTableNo, setQrTableNo] = useState('');
 
   useEffect(() => {
-    Promise.all([menuApi.getCategories(), menuApi.getItems({}), tableApi.getAll()])
-      .then(([cats, its, tbls]) => {
-        setCategories(cats);
-        setItems(its.filter(i => i.status === 'active'));
-        setTables(tbls);
-        if (cats.length > 0) setActiveCat(cats[0].id);
-      });
+    const params = new URLSearchParams(window.location.search);
+    const tableId = params.get('table');
+    const tableNo = params.get('table_no');
+    if (tableNo) setQrTableNo(tableNo);
+
+    Promise.all([
+      menuApi.getCategories().catch(() => []),
+      menuApi.getItems({}).catch(() => []),
+      tableApi.getAll().catch(() => []),
+      settingsApi.getAll().catch(() => ({})),
+    ]).then(([cats, its, tbls, settings]) => {
+      setCategories(cats);
+      setItems(its.filter(i => i.status === 'active'));
+      setTables(tbls);
+      if (cats.length > 0) setActiveCat(cats[0].id);
+      if (settings.shop_name) setShopName(settings.shop_name);
+      // 扫码后自动选中桌号
+      if (tableId && tbls.find(t => t.id === Number(tableId))) {
+        setSelectedTable(Number(tableId));
+      }
+    });
   }, []);
 
   // Auto refresh orders
@@ -41,6 +56,7 @@ export default function App() {
     }
   }, [view, currentOrder]);
 
+  const currentTable = tables.find(t => t.id === selectedTable);
   const filteredItems = items.filter(i => i.category_id === activeCat);
   const cartItems = Object.entries(cart).filter(([_, q]) => q > 0).map(([id, qty]) => {
     const item = items.find(i => i.id === Number(id));
@@ -59,7 +75,7 @@ export default function App() {
   };
 
   const submitOrder = async () => {
-    if (!selectedTable) { setTableModal(true); return; }
+    if (!selectedTable) { return; }
     if (cartItems.length === 0) return;
     setSubmitting(true);
     try {
@@ -82,17 +98,12 @@ export default function App() {
       {/* Header */}
       <div className="header">
         <div className="header-left">
-          <span className="shop-name">🍢 烧烤摊</span>
-          <span className="table-badge" onClick={() => setTableModal(true)}>
-            {selectedTable ? `#${tables.find(t => t.id === selectedTable)?.table_no || selectedTable}` : '选桌号'}
+          <span className="table-badge">
+            {currentTable ? `📍 ${currentTable.zone_name ? currentTable.zone_name + ' ' : ''}${currentTable.table_no}` : qrTableNo ? `📍 ${qrTableNo}` : ''}
           </span>
         </div>
-        <div className="header-tabs">
-          <span className={`tab ${view === 'menu' ? 'active' : ''}`} onClick={() => setView('menu')}>点餐</span>
-          <span className={`tab ${view === 'orders' ? 'active' : ''}`}
-            onClick={() => { setView('orders'); orderApi.getAll({ limit: 20 }).then(setOrders).catch(() => {}); }}>
-            订单
-          </span>
+        <div className="header-right">
+          <span className="shop-name">{shopName}</span>
         </div>
       </div>
 
@@ -139,9 +150,9 @@ export default function App() {
           </div>
           <div className="od-no">订单号: {currentOrder.orderNo || currentOrder.id}</div>
           <div className="od-items">
-            {cartItems.map(i => (
+            {currentOrder.items?.map(i => (
               <div key={i.id} className="od-item">
-                <span>{i.name}</span><span>x{i.qty}</span><span>¥{i.price * i.qty}</span>
+                <span>{i.name}</span><span>x{i.quantity}</span><span>¥{i.unit_price * i.quantity}</span>
               </div>
             ))}
           </div>
@@ -203,29 +214,25 @@ export default function App() {
               <span className="cs-total">合计: ¥{cartTotal}</span>
               <button className="cs-submit" disabled={!selectedTable || submitting}
                 onClick={submitOrder}>
-                {submitting ? '下单中...' : selectedTable ? '确认下单' : '请选桌号'}
+                {submitting ? '下单中...' : '确认下单'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Table Selector Modal */}
-      {tableModal && (
-        <div className="overlay" onClick={() => setTableModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-title">选择桌号</div>
-            <div className="modal-grid">
-              {tables.map(t => (
-                <button key={t.id} className={`table-btn ${selectedTable === t.id ? 'selected' : ''}`}
-                  onClick={() => { setSelectedTable(t.id); setTableModal(false); }}>
-                  {t.table_no}
-                </button>
-              ))}
-            </div>
-          </div>
+      {/* Bottom Nav */}
+      <div className="bottom-nav">
+        <div className={`bn-item ${view === 'menu' ? 'active' : ''}`} onClick={() => setView('menu')}>
+          <span className="bn-icon">🍽️</span>
+          <span className="bn-label">点餐</span>
         </div>
-      )}
+        <div className={`bn-item ${view === 'orders' ? 'active' : ''}`}
+          onClick={() => { setView('orders'); orderApi.getAll({ limit: 20 }).then(setOrders).catch(() => {}); }}>
+          <span className="bn-icon">📋</span>
+          <span className="bn-label">订单</span>
+        </div>
+      </div>
     </div>
   );
 }
