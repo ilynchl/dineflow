@@ -57,6 +57,11 @@ app.get('/q/:code', async (req, res) => {
   }
 });
 
+// Prevent crash on unhandled promise rejections (e.g. RDS timeout)
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err.message);
+});
+
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 db.init().then(async () => {
