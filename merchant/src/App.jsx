@@ -5,12 +5,14 @@ import {
   DashboardOutlined, MenuOutlined, TableOutlined,
   OrderedListOutlined, ShopOutlined, SettingOutlined,
   QrcodeOutlined, BarChartOutlined, StopOutlined, SoundOutlined,
-  LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined,
+  LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, SmileOutlined,
+  FireOutlined,
 } from '@ant-design/icons';
 
 import './App.css';
 import OperationPanel from './pages/operation/OperationPanel';
 import OrderList from './pages/operation/OrderList';
+import KitchenPage from './pages/kitchen/KitchenPage';
 import MenuManage from './pages/admin/MenuManage';
 import SoldOutManage from './pages/admin/SoldOutManage';
 import WordLibrary from './pages/admin/WordLibrary';
@@ -18,12 +20,14 @@ import TableManage from './pages/admin/TableManage';
 import QrManage from './pages/admin/QrManage';
 import StatsPage from './pages/admin/StatsPage';
 import SettingsPage from './pages/admin/SettingsPage';
+import PreferencesPage from './pages/admin/PreferencesPage';
 import Login from './pages/Login';
 
 const { Header, Sider, Content } = Layout;
 
 const menuItems = [
   { key: '/', icon: <DashboardOutlined />, label: '经营看板' },
+  { key: '/kitchen', icon: <FireOutlined />, label: '制作管理' },
   { key: '/orders', icon: <OrderedListOutlined />, label: '订单列表' },
   { key: '/menu', icon: <MenuOutlined />, label: '菜品管理' },
   { key: '/soldout', icon: <StopOutlined />, label: '沽清管理' },
@@ -31,6 +35,7 @@ const menuItems = [
   { key: '/tables', icon: <TableOutlined />, label: '桌台管理' },
   { key: '/qrcodes', icon: <QrcodeOutlined />, label: '活码管理' },
   { key: '/stats', icon: <BarChartOutlined />, label: '营业统计' },
+  { key: '/preferences', icon: <SmileOutlined />, label: '偏好配置' },
   { key: '/settings', icon: <SettingOutlined />, label: '系统设置' },
 ];
 
@@ -105,6 +110,7 @@ function DashboardLayout({ user, onLogout }) {
         <Content style={{ margin: 12, minHeight: 'calc(100vh - 24px)' }}>
           <Routes>
             <Route path="/" element={<OperationPanel />} />
+            <Route path="/kitchen" element={<KitchenPage />} />
             <Route path="/orders" element={<OrderList />} />
             <Route path="/menu" element={<MenuManage />} />
             <Route path="/soldout" element={<SoldOutManage />} />
@@ -112,6 +118,7 @@ function DashboardLayout({ user, onLogout }) {
             <Route path="/tables" element={<TableManage />} />
             <Route path="/qrcodes" element={<QrManage />} />
             <Route path="/stats" element={<StatsPage />} />
+            <Route path="/preferences" element={<PreferencesPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </Content>

@@ -63,7 +63,9 @@ export const orderApi = {
   addItems: (id, items) => request(`/orders/${id}/items`, { method: 'POST', body: JSON.stringify({ items }) }),
   updateStatus: (id, status) => request(`/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   updateItemStatus: (itemId, status) => request(`/orders/items/${itemId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  serveItem: (itemId, quantity) => request(`/orders/items/${itemId}/serve`, { method: 'PATCH', body: JSON.stringify({ quantity }) }),
   kitchenPending: () => request('/orders/kitchen/pending'),
+  kitchenGrouped: (groupBy) => request(`/orders/kitchen/grouped?group_by=${groupBy}`),
 };
 
 // Payment
@@ -113,4 +115,12 @@ export const wordApi = {
   create: (data) => request('/words', { method: 'POST', body: JSON.stringify(data) }),
   delete: (id) => request(`/words/${id}`, { method: 'DELETE' }),
   resolve: (text) => request('/words/resolve', { method: 'POST', body: JSON.stringify({ text }) }),
+};
+
+// Preferences
+export const preferenceApi = {
+  getAll: () => request('/preferences'),
+  create: (data) => request('/preferences', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id, data) => request(`/preferences/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id) => request(`/preferences/${id}`, { method: 'DELETE' }),
 };

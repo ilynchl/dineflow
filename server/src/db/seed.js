@@ -29,13 +29,7 @@ const seedData = {
     { name: '可乐', unit: '瓶', price: 3, category_id: 4, zone: 'kitchen' },
     { name: '啤酒', unit: '瓶', price: 5, category_id: 4, zone: 'kitchen' },
   ],
-  settings: [
-    { key: 'shop_name', value: '我的烧烤摊' },
-    { key: 'shop_phone', value: '' },
-    { key: 'print_receipt', value: 'true' },
-    { key: 'print_kitchen', value: 'false' },
-    { key: 'default_trial_days', value: '30' },
-  ],
+  settings: [],
 };
 
 async function seed() {
@@ -63,7 +57,7 @@ async function seed() {
     console.log('  Database has existing data, updating tenant_id...');
     const tables = ['df_tns_zones', 'df_tns_categories', 'df_tns_tables', 'df_tns_menu_items',
       'df_tns_orders', 'df_tns_order_items', 'df_tns_split_records', 'df_tns_payment_records',
-      'df_tns_qr_codes', 'df_tns_settings', 'df_tns_word_library'];
+      'df_tns_qr_codes', 'df_tns_word_library'];
     for (const t of tables) {
       try {
         await dbh.exec(`UPDATE ${t} SET tenant_id = ${tenantId} WHERE tenant_id = 0 OR tenant_id IS NULL`);
@@ -99,10 +93,8 @@ async function seed() {
     }
     console.log('  ✓ Menu items');
 
-    for (const s of seedData.settings) {
-      await dbh.prepare('INSERT INTO df_tns_settings (`key`, `value`, tenant_id) VALUES (?, ?, ?)').run(s.key, s.value, tenantId);
-    }
-    console.log('  ✓ Settings');
+    // Settings now default via df_sys_tenants DDL (print_receipt='true', print_kitchen='false')
+    console.log('  ✓ Settings (defaults in df_sys_tenants)');
   });
 
   try {

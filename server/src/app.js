@@ -17,6 +17,7 @@ const authRoutes = require('./routes/auth');
 const saasRoutes = require('./routes/saas');
 const systemParamRoutes = require('./routes/systemParams');
 const merchantRoutes = require('./routes/merchant');
+const preferenceRoutes = require('./routes/preferences');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -37,6 +38,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/saas', saasRoutes);
 app.use('/api/system-params', systemParamRoutes);
 app.use('/api/merchant', merchantRoutes);
+app.use('/api/preferences', preferenceRoutes);
 
 // QR code redirect (活码)
 app.get('/q/:code', async (req, res) => {

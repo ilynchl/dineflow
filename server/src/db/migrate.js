@@ -10,7 +10,6 @@ const OLD_TO_NEW = {
   df_split_records: 'df_tns_split_records',
   df_payment_records: 'df_tns_payment_records',
   df_qr_codes: 'df_tns_qr_codes',
-  df_settings: 'df_tns_settings',
   df_word_library: 'df_tns_word_library',
   df_tenants: 'df_sys_tenants',
   df_users: 'df_sys_users',
@@ -138,15 +137,6 @@ const NEW_TABLE_DDL = [
     FOREIGN KEY (table_id) REFERENCES df_tns_tables(id) ON DELETE SET NULL
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
-  `CREATE TABLE IF NOT EXISTS df_tns_settings (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    \`key\` VARCHAR(100) NOT NULL,
-    \`value\` TEXT,
-    tenant_id INT NOT NULL DEFAULT 0,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE INDEX uq_settings_tenant_key (tenant_id, \`key\`)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
   `CREATE TABLE IF NOT EXISTS df_tns_word_library (
     id INT AUTO_INCREMENT PRIMARY KEY,
     alias VARCHAR(100) NOT NULL,
@@ -166,6 +156,8 @@ const NEW_TABLE_DDL = [
     remark TEXT,
     avatar VARCHAR(500) DEFAULT NULL,
     password_hash VARCHAR(255) DEFAULT NULL,
+    print_receipt VARCHAR(10) DEFAULT 'true',
+    print_kitchen VARCHAR(10) DEFAULT 'false',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
@@ -185,6 +177,18 @@ const NEW_TABLE_DDL = [
     file_url VARCHAR(500) NOT NULL,
     tenant_id INT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  `CREATE TABLE IF NOT EXISTS df_tns_preferences (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT NOT NULL DEFAULT 0,
+    name VARCHAR(50) NOT NULL,
+    type VARCHAR(20) DEFAULT 'radio',
+    options JSON NOT NULL,
+    sort_order INT DEFAULT 0,
+    category_id INT DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_prefs_tenant (tenant_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
   `CREATE TABLE IF NOT EXISTS df_sys_params (
@@ -238,7 +242,6 @@ async function migrate() {
     "ALTER TABLE df_tns_split_records ADD COLUMN tenant_id INT NOT NULL DEFAULT 0 AFTER order_item_id",
     "ALTER TABLE df_tns_payment_records ADD COLUMN tenant_id INT NOT NULL DEFAULT 0 AFTER method",
     "ALTER TABLE df_tns_qr_codes ADD COLUMN tenant_id INT NOT NULL DEFAULT 0 AFTER table_id",
-    "ALTER TABLE df_tns_settings ADD COLUMN tenant_id INT NOT NULL DEFAULT 0 AFTER `key`",
     "ALTER TABLE df_tns_word_library ADD COLUMN tenant_id INT NOT NULL DEFAULT 0 AFTER alias",
   ];
   for (const sql of ADD_TENANT_SQL) {
@@ -267,7 +270,6 @@ async function migrate() {
     { table: 'df_tns_tables', oldIdx: 'table_no', newSql: 'ALTER TABLE df_tns_tables ADD UNIQUE INDEX uq_tables_tenant_no (tenant_id, table_no)' },
     { table: 'df_tns_qr_codes', oldIdx: 'code', newSql: 'ALTER TABLE df_tns_qr_codes ADD UNIQUE INDEX uq_qrcodes_tenant_code (tenant_id, code)' },
     { table: 'df_tns_orders', oldIdx: 'order_no', newSql: 'ALTER TABLE df_tns_orders ADD UNIQUE INDEX uq_orders_tenant_no (tenant_id, order_no)' },
-    { table: 'df_tns_settings', oldIdx: 'key', newSql: 'ALTER TABLE df_tns_settings ADD UNIQUE INDEX uq_settings_tenant_key (tenant_id, \`key\`)' },
   ];
   for (const fix of UNIQUE_FIXES) {
     try {
@@ -278,6 +280,80 @@ async function migrate() {
       console.log(`  ✓ ${fix.table}: (tenant_id, ${fix.oldIdx}) UNIQUE`);
     } catch (e) {
       console.error(`  ✗ ${fix.table}: ${e.message.slice(0, 60)}`);
+    }
+  }
+
+  // Step 6: add preference & served_quantity columns
+  const COLUMN_ADDITIONS = [
+    "ALTER TABLE df_tns_orders ADD COLUMN preferences JSON DEFAULT NULL",
+    "ALTER TABLE df_tns_order_items ADD COLUMN served_quantity INT DEFAULT 0",
+  ];
+  for (const sql of COLUMN_ADDITIONS) {
+    try {
+      await dbh.exec(sql);
+      const col = sql.match(/ADD COLUMN (\S+)/)?.[1] || '';
+      console.log(`  + ${col} → ${sql.match(/TABLE (\S+)/)?.[1] || ''}`);
+    } catch (err) {
+      if (err.message?.includes('Duplicate column')) {
+        // silently skip
+      } else {
+        console.error(`  ✗ ${err.message.slice(0, 60)}`);
+      }
+    }
+  }
+
+  // Step 7: migrate df_tns_settings → df_sys_tenants, then drop old table
+  try {
+    // Check if old settings table exists
+    const hasSettings = await dbh.exec("SELECT TABLE_NAME FROM information_schema.tables WHERE table_schema = 'tcyx-prod' AND table_name = 'df_tns_settings'");
+    if (hasSettings && hasSettings.length > 0) {
+      // Add columns if not exist (for tenants created before this migration)
+      for (const col of ['print_receipt', 'print_kitchen']) {
+        try {
+          await dbh.exec(`ALTER TABLE df_sys_tenants ADD COLUMN ${col} VARCHAR(10) DEFAULT NULL`);
+        } catch (e) { /* already exists */ }
+      }
+      // Copy shop_name → df_sys_tenants.name (if df_sys_tenants.name is still the default)
+      await dbh.exec(
+        "UPDATE df_sys_tenants t JOIN df_tns_settings s ON t.id = s.tenant_id AND s.`key` = 'shop_name' AND s.`value` IS NOT NULL AND s.`value` != '' SET t.name = s.`value`"
+      );
+      // Copy print_receipt
+      await dbh.exec(
+        "UPDATE df_sys_tenants t JOIN df_tns_settings s ON t.id = s.tenant_id AND s.`key` = 'print_receipt' SET t.print_receipt = s.`value`"
+      );
+      // Copy print_kitchen
+      await dbh.exec(
+        "UPDATE df_sys_tenants t JOIN df_tns_settings s ON t.id = s.tenant_id AND s.`key` = 'print_kitchen' SET t.print_kitchen = s.`value`"
+      );
+      console.log('  ✓ Data migrated df_tns_settings → df_sys_tenants');
+      await dbh.exec('DROP TABLE IF EXISTS df_tns_settings');
+      console.log('  ✓ Dropped df_tns_settings');
+    }
+  } catch (err) {
+    console.error(`  ✗ settings migration: ${err.message.slice(0, 80)}`);
+  }
+
+  // Step 8: add category_id to df_tns_preferences
+  try {
+    await dbh.exec("ALTER TABLE df_tns_preferences ADD COLUMN category_id INT DEFAULT NULL");
+    console.log('  + category_id → df_tns_preferences');
+  } catch (err) {
+    if (err.message?.includes('Duplicate column')) {
+      // already exists
+    } else {
+      console.error(`  ✗ ${err.message.slice(0, 60)}`);
+    }
+  }
+
+  // Step 9: add preferences to df_tns_order_items
+  try {
+    await dbh.exec("ALTER TABLE df_tns_order_items ADD COLUMN preferences JSON DEFAULT NULL");
+    console.log('  + preferences → df_tns_order_items');
+  } catch (err) {
+    if (err.message?.includes('Duplicate column')) {
+      // already exists
+    } else {
+      console.error(`  ✗ ${err.message.slice(0, 60)}`);
     }
   }
 

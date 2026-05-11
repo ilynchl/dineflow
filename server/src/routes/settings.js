@@ -4,13 +4,10 @@ const { getDb } = require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
 const { tenantContext, requireTenant } = require('../middleware/tenant');
 
-// GET —— 读取设置
-// 有租户上下文（JWT 或 ?__tenant）时返回该租户的设置；
-// 无租户上下文时返回全局设置（兼容运营中台）
+// GET —— 读取设置（全部从 df_sys_tenants 读取）
 router.get('/', async (req, res) => {
   const db = getDb();
 
-  // 尝试获取 tenant_id（JWT → ?__tenant）
   try {
     const jwt = require('jsonwebtoken');
     const { JWT_SECRET } = require('../middleware/auth');
@@ -28,38 +25,39 @@ router.get('/', async (req, res) => {
   }
 
   if (tid) {
-    const rows = await db.prepare('SELECT * FROM df_tns_settings WHERE tenant_id = ?').all(tid);
-    const settings = {};
-    for (const row of rows) settings[row.key] = row.value;
-    return res.json(settings);
+    const tenant = await db.prepare('SELECT name, print_receipt, print_kitchen FROM df_sys_tenants WHERE id = ?').get(tid);
+    if (tenant) {
+      return res.json({
+        shop_name: tenant.name,
+        print_receipt: tenant.print_receipt || 'false',
+        print_kitchen: tenant.print_kitchen || 'false',
+      });
+    }
+    return res.json({});
   }
 
-  // 无租户：返回第一个租户的设置
-  const first = await db.prepare('SELECT tenant_id FROM df_tns_settings GROUP BY tenant_id ORDER BY tenant_id LIMIT 1').get();
+  const first = await db.prepare('SELECT id, name, print_receipt, print_kitchen FROM df_sys_tenants ORDER BY id LIMIT 1').get();
   if (first) {
-    const rows = await db.prepare('SELECT * FROM df_tns_settings WHERE tenant_id = ?').all(first.tenant_id);
-    const settings = {};
-    for (const row of rows) settings[row.key] = row.value;
-    return res.json(settings);
+    return res.json({
+      shop_name: first.name,
+      print_receipt: first.print_receipt || 'false',
+      print_kitchen: first.print_kitchen || 'false',
+    });
   }
 
   res.json({});
 });
 
-// PUT —— 写入设置（商家端）
+// PUT —— 写入设置（写入 df_sys_tenants）
 router.put('/', authMiddleware, tenantContext, requireTenant, async (req, res) => {
   const db = getDb();
-  const txn = db.transaction(async () => {
-    for (const [key, value] of Object.entries(req.body)) {
-      const existing = await db.prepare('SELECT id FROM df_tns_settings WHERE `key` = ? AND tenant_id = ?').get(key, req.tenantId);
-      if (existing) {
-        await db.prepare('UPDATE df_tns_settings SET `value` = ? WHERE `key` = ? AND tenant_id = ?').run(String(value), key, req.tenantId);
-      } else {
-        await db.prepare('INSERT INTO df_tns_settings (`key`, `value`, tenant_id) VALUES (?, ?, ?)').run(key, String(value), req.tenantId);
-      }
+  for (const [key, value] of Object.entries(req.body)) {
+    if (key === 'shop_name') {
+      await db.prepare('UPDATE df_sys_tenants SET name = ? WHERE id = ?').run(String(value), req.tenantId);
+    } else if (key === 'print_receipt' || key === 'print_kitchen') {
+      await db.prepare(`UPDATE df_sys_tenants SET ${key} = ? WHERE id = ?`).run(String(value), req.tenantId);
     }
-  });
-  await txn();
+  }
   res.json({ success: true });
 });
 

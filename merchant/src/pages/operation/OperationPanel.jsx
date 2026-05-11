@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, Row, Col, Button, Badge, Modal, List, Tag, message, InputNumber, Select, Input, Tabs, Statistic, Space, Typography } from 'antd';
 import { PlusOutlined, CheckCircleOutlined, DollarOutlined, BellOutlined, SoundOutlined, SplitCellsOutlined, AudioOutlined } from '@ant-design/icons';
-import { orderApi, menuApi, tableApi, paymentApi, statsApi, splitApi, wordApi } from '../../api';
+import { orderApi, menuApi, tableApi, paymentApi, statsApi, splitApi, wordApi, preferenceApi } from '../../api';
 
 const { Text, Title } = Typography;
 
@@ -50,21 +50,27 @@ export default function OperationPanel() {
   const recognitionRef = useRef(null);
   const soundEnabled = useRef(true);
   const prevOrderCount = useRef(0);
+  const [prefConfig, setPrefConfig] = useState([]);
+  const [preferences, setPreferences] = useState({});
+  const [remark, setRemark] = useState('');
+  const [categories, setCategories] = useState([]);
 
   const loadData = useCallback(async () => {
     try {
-      const [o, k, m, t, s] = await Promise.all([
+      const [o, k, m, t, s, c] = await Promise.all([
         orderApi.getAll({ status: 'pending,preparing,served' }).catch(() => []),
         orderApi.kitchenPending().catch(() => []),
         menuApi.getItems({ status: 'active' }).catch(() => []),
         tableApi.getAll().catch(() => []),
         statsApi.summary().catch(() => ({})),
+        menuApi.getCategories().catch(() => []),
       ]);
       setOrders(o);
       setKitchenItems(k);
       setMenuItems(m);
       setTables(t);
       setStats(s);
+      setCategories(c);
 
       // Play sound for new orders
       if (prevOrderCount.current > 0 && k.length > prevOrderCount.current && soundEnabled.current) {
@@ -82,19 +88,53 @@ export default function OperationPanel() {
     return () => clearInterval(timer);
   }, [loadData]);
 
+  // Load preferences when quick modal opens
+  useEffect(() => {
+    if (quickModal) {
+      preferenceApi.getAll().then(setPrefConfig).catch(() => {});
+      setPreferences({});
+    }
+  }, [quickModal]);
+
   // Quick order (报串)
   const handleQuickOrder = async () => {
     if (!selectedTable || cart.length === 0) {
       message.warning('请选择桌台和菜品');
       return;
     }
+    // 偏好必选校验（按分类分组）
+    const cartCatIds = new Set();
+    cart.forEach(c => {
+      const mi = menuItems.find(i => i.id === c.id);
+      if (mi?.category_id) cartCatIds.add(mi.category_id);
+    });
+    for (const catId of cartCatIds) {
+      const catPrefs = prefConfig.filter(p => !p.category_id || p.category_id === catId);
+      const selected = preferences[catId] || {};
+      const missing = catPrefs.filter(p => !selected[p.name]);
+      if (missing.length > 0) {
+        const cat = categories.find(c => c.id === catId);
+        message.warning(`请为「${cat?.name || '其他'}」选择: ${missing.map(p => p.name).join('、')}`);
+        return;
+      }
+    }
     try {
       await orderApi.create({
         table_id: selectedTable,
-        items: cart.map(c => ({ menu_item_id: c.id, quantity: c.qty, flavor: c.flavor })),
+        items: cart.map(c => {
+          const mi = menuItems.find(i => i.id === c.id);
+          return {
+            menu_item_id: c.id,
+            quantity: c.qty,
+            flavor: c.flavor,
+            preferences: mi?.category_id ? (preferences[mi.category_id] || undefined) : undefined,
+          };
+        }),
+        remark: remark || undefined,
       });
       message.success('下单成功！');
       setCart([]);
+      setRemark('');
       setQuickModal(false);
       loadData();
     } catch (e) {
@@ -398,6 +438,46 @@ export default function OperationPanel() {
               </div>
             </Card>
           )}
+          {(() => {
+            // 按分类分组展示偏好
+            const cartCatIds = new Set();
+            cart.forEach(c => {
+              const mi = menuItems.find(i => i.id === c.id);
+              if (mi?.category_id) cartCatIds.add(mi.category_id);
+            });
+            let hasAny = false;
+            const cards = [];
+            for (const catId of cartCatIds) {
+              const catPrefs = prefConfig.filter(p => !p.category_id || p.category_id === catId);
+              if (catPrefs.length === 0) continue;
+              hasAny = true;
+              const cat = categories.find(c => c.id === catId);
+              cards.push(
+                <Card key={catId} size="small" title={`口味偏好 - ${cat?.name || '其他'}`} style={{ marginTop: 8 }}>
+                  {catPrefs.map(p => (
+                    <div key={p.id} style={{ marginBottom: 8 }}>
+                      <Text strong style={{ fontSize: 13, marginRight: 8 }}>{p.name}：</Text>
+                      <Space size={4} wrap>
+                        {(p.options || []).map(opt => (
+                          <Button key={opt} size="small"
+                            type={(preferences[catId] || {})[p.name] === opt ? 'primary' : 'default'}
+                            onClick={() => setPreferences(prev => ({
+                              ...prev,
+                              [catId]: { ...(prev[catId] || {}), [p.name]: opt },
+                            }))}>
+                            {opt}
+                          </Button>
+                        ))}
+                      </Space>
+                    </div>
+                  ))}
+                </Card>
+              );
+            }
+            return hasAny ? cards : null;
+          })()}
+          <Input.TextArea rows={1} placeholder="备注（选填）" value={remark}
+            onChange={e => setRemark(e.target.value)} />
           <Button type="primary" block size="large" disabled={cart.length === 0 || !selectedTable}
             onClick={handleQuickOrder} style={{ height: 50, fontSize: 18 }}>
             确认下单

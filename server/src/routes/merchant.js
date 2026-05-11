@@ -34,13 +34,6 @@ router.put('/profile', async (req, res) => {
   if (!tenant) return res.status(404).json({ error: '商户账号不存在，请重新登录' });
 
   await db.prepare('UPDATE df_sys_tenants SET name = ? WHERE id = ?').run(name, req.user.tenant_id);
-  // Upsert per-tenant settings entry
-  const existing = await db.prepare("SELECT id FROM df_tns_settings WHERE `key` = ? AND tenant_id = ?").get('shop_name', req.user.tenant_id);
-  if (existing) {
-    await db.prepare("UPDATE df_tns_settings SET `value` = ? WHERE `key` = ? AND tenant_id = ?").run(name, 'shop_name', req.user.tenant_id);
-  } else {
-    await db.prepare("INSERT INTO df_tns_settings (`key`, `value`, tenant_id) VALUES (?, ?, ?)").run('shop_name', name, req.user.tenant_id);
-  }
   res.json({ success: true });
 });
 
